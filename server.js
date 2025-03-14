@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const request = require('request');
@@ -6,10 +7,25 @@ const app = express();
 app.use(bodyParser.json());
 
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
 
 // Vérification du serveur
 app.get('/', (req, res) => {
   res.send('Bot Messenger en ligne !');
+});
+
+// Vérification du webhook
+app.get('/webhook', (req, res) => {
+  let mode = req.query['hub.mode'];
+  let token = req.query['hub.verify_token'];
+  let challenge = req.query['hub.challenge'];
+
+  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+    console.log('Webhook vérifié avec succès !');
+    res.status(200).send(challenge);
+  } else {
+    res.sendStatus(403);
+  }
 });
 
 // Webhook pour recevoir des messages
@@ -39,9 +55,16 @@ function sendMessage(sender_psid, message) {
     qs: { access_token: PAGE_ACCESS_TOKEN },
     method: 'POST',
     json: request_body
+  }, (err, res, body) => {
+    if (err) {
+      console.error('Erreur lors de l\'envoi du message :', err);
+    } else {
+      console.log('Message envoyé avec succès !');
+    }
   });
 }
 
-app.listen(3000, () => {
-  console.log('Serveur en ligne sur le port 3000');
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Serveur en ligne sur le port ${PORT}`);
 });
