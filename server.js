@@ -1,13 +1,13 @@
-require('dotenv').config();
 const express = require('express');
 const bodyParser = require('body-parser');
 const request = require('request');
+require('dotenv').config(); // Charger les variables d'environnement
 
 const app = express();
 app.use(bodyParser.json());
 
 const PAGE_ACCESS_TOKEN = process.env.PAGE_ACCESS_TOKEN;
-const VERIFY_TOKEN = process.env.VERIFY_TOKEN;
+const VERIFY_TOKEN = process.env.VERIFY_TOKEN; // Assurez-vous que cette variable est bien définie sur Render
 
 // Vérification du serveur
 app.get('/', (req, res) => {
@@ -16,27 +16,35 @@ app.get('/', (req, res) => {
 
 // Vérification du webhook
 app.get('/webhook', (req, res) => {
-  let mode = req.query['hub.mode'];
-  let token = req.query['hub.verify_token'];
-  let challenge = req.query['hub.challenge'];
+  const mode = req.query['hub.mode'];
+  const token = req.query['hub.verify_token'];
+  const challenge = req.query['hub.challenge'];
 
-  if (mode === 'subscribe' && token === VERIFY_TOKEN) {
-    console.log('Webhook vérifié avec succès !');
-    res.status(200).send(challenge);
+  if (mode && token) {
+    if (mode === 'subscribe' && token === VERIFY_TOKEN) {
+      console.log('✅ Webhook vérifié avec succès !');
+      res.status(200).send(challenge); // Envoyer le challenge pour la validation
+    } else {
+      console.log('❌ Vérification échouée : Token incorrect.');
+      res.sendStatus(403); // Token invalide
+    }
   } else {
-    res.sendStatus(403);
+    console.log('❌ Requête invalide pour la vérification.');
+    res.sendStatus(400); // Mauvaise requête
   }
 });
 
 // Webhook pour recevoir des messages
 app.post('/webhook', (req, res) => {
   let body = req.body;
+
   if (body.object === 'page') {
     body.entry.forEach(entry => {
       let webhook_event = entry.messaging[0];
       let sender_psid = webhook_event.sender.id;
       sendMessage(sender_psid, 'Salut ! 👋');
     });
+
     res.status(200).send('EVENT_RECEIVED');
   } else {
     res.sendStatus(404);
@@ -55,16 +63,17 @@ function sendMessage(sender_psid, message) {
     qs: { access_token: PAGE_ACCESS_TOKEN },
     method: 'POST',
     json: request_body
-  }, (err, res, body) => {
-    if (err) {
-      console.error('Erreur lors de l\'envoi du message :', err);
+  }, (error, response, body) => {
+    if (error) {
+      console.error('❌ Erreur lors de l\'envoi du message :', error);
     } else {
-      console.log('Message envoyé avec succès !');
+      console.log('✅ Message envoyé avec succès !');
     }
   });
 }
 
+// Démarrer le serveur
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Serveur en ligne sur le port ${PORT}`);
+  console.log(`✅ Serveur en ligne sur le port ${PORT}`);
 });
